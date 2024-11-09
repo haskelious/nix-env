@@ -16,7 +16,7 @@ pkgs.mkShell {
 
   shellHook = ''
     #! /usr/bin/env bash
-    cat ~/.config/code-server/config.yaml
+    (sleep 2; cat ~/.config/code-server/config.yaml) &
     code-server
   '';
 }
