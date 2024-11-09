@@ -2,7 +2,6 @@
 
 pkgs.mkShell {
   nativeBuildInputs = with pkgs.buildPackages; [
-    clang
     rustc
     cargo
     clippy

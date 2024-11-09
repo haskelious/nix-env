@@ -41,7 +41,6 @@ in pkgs.dockerTools.buildImage {
       busybox
       nix
       cacert
-      glibc
       entrypointScript
       envs
    ];
