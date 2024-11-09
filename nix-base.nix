@@ -5,6 +5,11 @@ let
   uid = "1000";
   gid = "100";
 
+  envs = pkgs.lib.fileset.toSource {
+    root = ./.;
+    fileset = ./envs;
+  };
+
   # container entrypoint to load the latest nix-unstable channel and
   # adds nix binaries to user path
   entrypointScript = pkgs.writeScriptBin "entrypoint.sh" ''
@@ -32,7 +37,9 @@ in pkgs.dockerTools.buildImage {
       busybox
       nix
       cacert
+      glibc
       entrypointScript
+      envs
    ];
   };
 
