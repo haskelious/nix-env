@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 # build nix-base docker image
-nix-build nix-base.nix && \
+nix-build --log-format bar nix-base.nix && \
 
 # import image
 docker load -i ./result && \

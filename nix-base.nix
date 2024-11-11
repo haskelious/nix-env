@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> { } }:
+{ pkgs ? import <nixpkgs> { }, pkgsMusl ? (import <nixpkgs> { }).pkgsMusl }:
 
 let
   # define the nix user UID and GID
@@ -43,7 +43,7 @@ in pkgs.dockerTools.buildImage {
       cacert
       entrypointScript
       envs
-   ];
+    ];
   };
 
   # set the entrypoint, user working folder, certificates env var
