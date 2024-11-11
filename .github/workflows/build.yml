@@ -1,4 +1,4 @@
-name: Build image
+name: Build and publish image
 on:
   push:
     branches:
@@ -17,10 +17,19 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Build with nix-build
-        run: nix-build nix-base.nix && mv result result.tar.gz
+        run: nix-build nix-base.nix
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifact
-          path: result.tar.gz
+      - name: Load Docker image
+        run: docker load -i result
+
+      - name: Build Docker image
+        run: docker build -t nix-env:latest -f Dockerfile .
+
+      - name: Login to Docker
+        run: docker login -u $({ secrets.DOCKER_USERNAME }) -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Tag Docker image
+        run: docker tag localhost/nix-env:latest haskelious/nix-env:latest
+
+      - name: Push Docker image
+        run: docker push haskelious/nix-env:latest
