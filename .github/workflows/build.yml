@@ -26,7 +26,7 @@ jobs:
         run: docker build -t nix-env:latest -f Dockerfile .
 
       - name: Login to Docker
-        run: docker login -u $({ secrets.DOCKER_USERNAME }) -p ${{ secrets.DOCKER_PASSWORD }}
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Tag Docker image
         run: docker tag nix-env:latest haskelious/nix-env:latest
