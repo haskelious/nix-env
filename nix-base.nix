@@ -36,7 +36,7 @@ in pkgs.dockerTools.buildImage {
   # build a base image with bash, core linux tools, nix tools, and certificates
   copyToRoot = pkgs.buildEnv {
     name = "nix-base";
-    paths = with pkgs; [
+    paths = with pkgsMusl; [
       bashInteractive
       busybox
       nix
