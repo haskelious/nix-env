@@ -1,4 +1,4 @@
-FROM localhost/nix-base:latest
+FROM nix-base:latest
 
 # make necessary folders for a fully functional nix environment
 # set permissions of nix folder to the nix user

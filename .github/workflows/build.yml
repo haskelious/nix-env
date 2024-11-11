@@ -29,7 +29,7 @@ jobs:
         run: docker login -u $({ secrets.DOCKER_USERNAME }) -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Tag Docker image
-        run: docker tag localhost/nix-env:latest haskelious/nix-env:latest
+        run: docker tag nix-env:latest haskelious/nix-env:latest
 
       - name: Push Docker image
         run: docker push haskelious/nix-env:latest
