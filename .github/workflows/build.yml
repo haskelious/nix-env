@@ -13,6 +13,8 @@ jobs:
 
       - name: Set up Nix
         uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Build with nix-build
         run: nix-build nix-base.nix && mv result result.tar.gz
