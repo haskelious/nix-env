@@ -29,21 +29,17 @@ let
     exec "$@"
   '';
 
+  system  = with pkgs; [ bashInteractive busybox nix cacert ];
+  extra   = with pkgs; [ entrypointScript envs ];
+
 in pkgs.dockerTools.buildImage {
   name = "nix-base";
   tag = "latest";
 
   # build a base image with bash, core linux tools, nix tools, and certificates
   copyToRoot = pkgs.buildEnv {
-    name = "nix-base";
-    paths = with pkgsMusl; [
-      bashInteractive
-      busybox
-      nix
-      cacert
-      entrypointScript
-      envs
-    ];
+    name = "env";
+    paths = system ++ extra;
   };
 
   # set the entrypoint, user working folder, certificates env var
@@ -52,11 +48,11 @@ in pkgs.dockerTools.buildImage {
     Cmd = [ "bash" ];
     Entrypoint = [ "${entrypointScript}/bin/entrypoint.sh" ];
     WorkingDir = "/home/nix";
+    Volumes = { "/home/nix" = { }; };
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PAGER=cat"
     ];
-    Volumes = { "/home/nix" = { }; };
   };
 
   # finalize the image building by adding necessary components to get
