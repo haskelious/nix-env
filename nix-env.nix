@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> { }, pkgsMusl ? (import <nixpkgs> { }).pkgsMusl }:
+{ pkgs ? import <nixpkgs> { overlays = [ (import ./overlay.nix) ]; } }:
 
 let
   # define the nix user UID and GID
@@ -29,18 +29,23 @@ let
     exec "$@"
   '';
 
-  system  = with pkgs; [ bashInteractive busybox nix cacert ];
+  system  = with pkgs; [ dockerTools.caCertificates bashInteractive busybox nix ];
   extra   = with pkgs; [ entrypointScript envs ];
 
 in pkgs.dockerTools.buildImage {
-  name = "nix-base";
+  name = "nix-env";
   tag = "latest";
+
+  compressor = "gz";
 
   # build a base image with bash, core linux tools, nix tools, and certificates
   copyToRoot = pkgs.buildEnv {
     name = "env";
     paths = system ++ extra;
   };
+
+  inherit uid;
+  inherit gid;
 
   # set the entrypoint, user working folder, certificates env var
   # mount the home directory volume if it is used for persistence
@@ -49,9 +54,11 @@ in pkgs.dockerTools.buildImage {
     Entrypoint = [ "${entrypointScript}/bin/entrypoint.sh" ];
     WorkingDir = "/home/nix";
     Volumes = { "/home/nix" = { }; };
+    User = "nix";
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PAGER=cat"
+      "USER=nix"
     ];
   };
 
@@ -63,20 +70,13 @@ in pkgs.dockerTools.buildImage {
 
     # create the necessary groups
     groupadd -g ${gid} users
-    groupadd -g 30000 nixbld
 
     # create the nix user
-    useradd -m -u ${uid} -g ${gid} -s /bin/bash -G users,nixbld nix
-
-    # create the nixbld users
-    for i in $(seq 1 10); do \
-      useradd -m -d /var/empty -g nixbld -G nixbld nixbld$i; \
-    done
+    useradd -m -u ${uid} -g ${gid} -s /bin/bash -G users nix
 
     # configure nix
     mkdir -p /etc/nix
     cat > /etc/nix/nix.conf << EOF
-    build-users-group = nixbld
     experimental-features = nix-command flakes
     EOF
 
