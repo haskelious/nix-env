@@ -23,7 +23,7 @@ jobs:
         run: docker load -i result
 
       - name: Login to Docker
-        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+        run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
       - name: Tag Docker image
         run: docker tag nix-env:latest haskelious/nix-env:latest
