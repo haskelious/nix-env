@@ -18,9 +18,6 @@ let
 
     # Add the nixpkgs-unstable channel
     nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
-    if [ ! -d /home/nix/.local/state/nix/profiles/channels/nixpkgs/pkgs ]; then
-      nix-channel --update
-    fi
 
     # set the environment
     source /etc/profile.d/nix.sh
@@ -56,7 +53,6 @@ in pkgs.dockerTools.buildImage {
     Volumes = { "/home/nix" = { }; };
     User = "nix";
     Env = [
-      "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PAGER=cat"
       "USER=nix"
     ];
