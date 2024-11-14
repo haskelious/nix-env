@@ -17,13 +17,10 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Build with nix-build
-        run: nix-build --quiet --log-format bar nix-base.nix
+        run: nix-build --quiet --log-format bar nix-env.nix
 
       - name: Load Docker image
         run: docker load -i result
-
-      - name: Build Docker image
-        run: docker build -t nix-env:latest -f Dockerfile .
 
       - name: Login to Docker
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
