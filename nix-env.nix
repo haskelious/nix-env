@@ -10,35 +10,24 @@ let
     fileset = ./envs;
   };
 
-  # container entrypoint to load the latest nix-unstable channel and
-  # adds nix binaries to user path
-  entrypointScript = pkgs.writeScriptBin "entrypoint.sh" ''
-    #!/bin/bash
-    set -e
-
-    # Add the nixpkgs-unstable channel
-    nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
-
-    # set the environment
-    source /etc/profile.d/nix.sh
-
-    # Execute the provided command
-    exec "$@"
-  '';
-
-  system  = with pkgs; [ dockerTools.caCertificates bashInteractive busybox nix ];
-  extra   = with pkgs; [ entrypointScript envs ];
-
 in pkgs.dockerTools.buildImage {
   name = "nix-env";
   tag = "latest";
 
-  compressor = "gz";
-
   # build a base image with bash, core linux tools, nix tools, and certificates
   copyToRoot = pkgs.buildEnv {
     name = "env";
-    paths = system ++ extra;
+    paths = with pkgs; [
+      dockerTools.caCertificates
+      dockerTools.usrBinEnv
+      dockerTools.binSh
+      bashInteractive
+      busybox
+      iana-etc
+      nix
+      envs
+    ];
+    pathsToLink = [ "/bin" "/etc" "/envs" ];
   };
 
   inherit uid;
@@ -47,14 +36,17 @@ in pkgs.dockerTools.buildImage {
   # set the entrypoint, user working folder, certificates env var
   # mount the home directory volume if it is used for persistence
   config = {
-    Cmd = [ "bash" ];
-    Entrypoint = [ "${entrypointScript}/bin/entrypoint.sh" ];
+    Cmd = [ "bash" "--rcfile" "/etc/profile.d/nix.sh" ];
     WorkingDir = "/home/nix";
     Volumes = { "/home/nix" = { }; };
     User = "nix";
     Env = [
       "PAGER=cat"
       "USER=nix"
+      "ENV=/etc/profile.d/nix.sh"
+      "BASH_ENV=/etc/profile.d/nix.sh"
+      "NIX_BUILD_SHELL=/bin/bash"
+      "NIX_PATH=nixpkgs=channel:nixos-unstable"
     ];
   };
 
