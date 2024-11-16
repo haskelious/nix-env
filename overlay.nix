@@ -1,108 +1,6 @@
 self: super: {
   dockerTools = super.dockerTools // {
 
-  # Make a "root" layer; required if we need to execute commands as a
-  # privileged user on the image. The commands themselves will be
-  # performed in a virtual machine sandbox.
-  mkRootLayer =
-    {
-      # Name of the image.
-      name
-    , # Script to run as root. Bash.
-      runAsRoot
-    , # Files to add to the layer. If null, an empty layer will be created.
-      # To add packages to /bin, use `buildEnv` or similar.
-      copyToRoot ? null
-    , # When copying the contents into the image, preserve symlinks to
-      # directories (see `rsync -K`).  Otherwise, transform those symlinks
-      # into directories.
-      keepContentsDirlinks ? false
-    , # JSON containing configuration and metadata for this layer.
-      baseJson
-    , # Existing image onto which to append the new layer.
-      fromImage ? null
-    , # Name of the image we're appending onto.
-      fromImageName ? null
-    , # Tag of the image we're appending onto.
-      fromImageTag ? null
-    , # How much disk to allocate for the temporary virtual machine.
-      diskSize ? 1024
-    , # How much memory to allocate for the temporary virtual machine.
-      buildVMMemorySize ? 512
-    , # Commands (bash) to run on the layer; these do not require sudo.
-      extraCommands ? ""
-    }:
-    # Generate an executable script from the `runAsRoot` text.
-    let
-      shellScript = super.dockerTools.shellScript;
-      storeDir = builtins.storeDir;
-      escapeShellArgs = super.lib.strings.escapeShellArgs;
-      toList = super.lib.lists.toList;
-      optionalString = super.lib.optionalString;
-      tarsum = super.tarsum;
-      runWithOverlay = super.dockerTools.runWithOverlay;
-
-      runAsRootScript = shellScript "run-as-root.sh" runAsRoot;
-      extraCommandsScript = shellScript "extra-commands.sh" extraCommands;
-    in
-    runWithOverlay {
-      name = "docker-layer-${name}";
-
-      inherit fromImage fromImageName fromImageTag diskSize buildVMMemorySize;
-
-      preMount = optionalString (copyToRoot != null && copyToRoot != [ ]) ''
-        echo "Adding contents..."
-        for item in ${escapeShellArgs (map (c: "${c}") (toList copyToRoot))}; do
-          echo "Adding $item..."
-          rsync -a${if keepContentsDirlinks then "K" else "k"} --chown=0:0 $item/ layer/
-        done
-
-        chmod ug+w layer
-      '';
-
-      postMount = ''
-        mkdir -p mnt/{dev,proc,sys,tmp} mnt${storeDir}
-
-        # Mount /dev, /sys and the nix store as shared folders.
-        mount --rbind /dev mnt/dev
-        mount --rbind /sys mnt/sys
-        mount --rbind ${storeDir} mnt${storeDir}
-
-        # Execute the run as root script. See 'man unshare' for
-        # details on what's going on here; basically this command
-        # means that the runAsRootScript will be executed in a nearly
-        # completely isolated environment.
-        #
-        # Ideally we would use --mount-proc=mnt/proc or similar, but this
-        # doesn't work. The workaround is to setup proc after unshare.
-        # See: https://github.com/karelzak/util-linux/issues/648
-        unshare -imnpuf --mount-proc sh -c 'mount --rbind /proc mnt/proc && chroot mnt ${runAsRootScript}'
-
-        # Unmount directories and remove them.
-        umount -R mnt/dev mnt/sys mnt${storeDir}
-        rmdir --ignore-fail-on-non-empty \
-          mnt/dev mnt/proc mnt/sys mnt${storeDir} \
-          mnt$(dirname ${storeDir})
-      '';
-
-      postUmount = ''
-        (cd layer; ${extraCommandsScript})
-
-        echo "Packing layer..."
-        mkdir -p $out
-        tarhash=$(tar -C layer --hard-dereference --sort=name --mtime="@$SOURCE_DATE_EPOCH" -cf - . |
-                    tee -p $out/layer.tar |
-                    ${tarsum}/bin/tarsum)
-
-        cat ${baseJson} | jshon -s "$tarhash" -i checksum > $out/json
-        # Indicate to docker that we're using schema version 1.0.
-        echo -n "1.0" > $out/VERSION
-
-        echo "Finished building layer '${name}'"
-      '';
-    };
-
-
   # 1. extract the base image
   # 2. create the layer
   # 3. add layer deps to the layer itself, diffing with the base image
@@ -153,18 +51,8 @@ self: super: {
     }:
 
     let
-      lib = super.lib;
-      pigz = super.pigz;
-      zstd = super.zstd;
-      jq = super.jq;
-      jshon = super.jshon;
-      moreutils = super.moreutils;
-      writeText = super.writeText;
-      runCommand = super.runCommand;
-      mkDbExtraCommand = super.mkDbExtraCommand;
-      mkPureLayer = super.dockerTools.mkPureLayer;
-      mkRootLayer = self.dockerTools.mkRootLayer;
-      writeClosure = super.writeClosure;
+      inherit (super) lib pigz zstd jq jshon moreutils writeText runCommand mkDbExtraCommand writeClosure;
+      inherit (super.dockerTools) mkPureLayer mkRootLayer;
 
       compressors = {
         none = {
