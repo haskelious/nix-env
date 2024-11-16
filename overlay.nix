@@ -51,6 +51,7 @@ self: super: {
     }:
 
     let
+      # OVERLAY: these 2 lines are added to the original function
       inherit (super) lib pigz zstd jq jshon moreutils writeText runCommand mkDbExtraCommand writeClosure;
       inherit (super.dockerTools) mkPureLayer mkRootLayer;
 
@@ -221,10 +222,14 @@ self: super: {
         # nix/store is added only if the layer has /nix/store paths in it.
         if [ $(wc -l < $layerClosure) -gt 1 ] && [ $(grep -c -e "^/nix/store$" baseFiles) -eq 0 ]; then
           mkdir -p nix/store
+
+          # OVERLAY: this folder is required for nix commands
           mkdir -p nix/var/nix
           chmod -R 555 nix
           echo "./nix" >> layerFiles
           echo "./nix/store" >> layerFiles
+
+          # OVERLAY: include these folders on image layer
           echo "./nix/var" >> layerFiles
           echo "./nix/var/nix" >> layerFiles
         fi
@@ -235,6 +240,7 @@ self: super: {
              <(sort -n layerFiles|uniq|grep -v ${layer}) -1 -3 > newFiles
 
         # Append the new files to the layer.
+        # OVERLAY: modify owner, group and mode for these additional files
         tar -rpf temp/layer.tar --hard-dereference --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
           --owner=1000 --group=100 --mode=u+w --no-recursion --verbatim-files-from --files-from newFiles
 
