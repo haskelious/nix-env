@@ -11,41 +11,52 @@ let
   };
 
 in pkgs.dockerTools.buildImage {
+  inherit uid;
+  inherit gid;
+
   name = "nix-env";
   tag = "latest";
 
   # build a base image with bash, core linux tools, nix tools, and certificates
   copyToRoot = pkgs.buildEnv {
     name = "env";
-    paths = with pkgs; [
-      dockerTools.caCertificates
-      dockerTools.usrBinEnv
-      dockerTools.binSh
-      bashInteractive
-      busybox
-      iana-etc
-      nix
-      envs
-    ];
     pathsToLink = [ "/bin" "/etc" "/envs" ];
-  };
+    paths =
 
-  inherit uid;
-  inherit gid;
+      # dockerTools helper packages
+      (with pkgs.dockerTools; [
+        caCertificates
+        usrBinEnv
+        binSh
+      ]) ++
+
+      # minimal set of common shell requirements
+      (with pkgs; [
+        iana-etc
+        bashInteractive
+        busybox
+        nix
+      ]) ++
+
+      # include example scripts to build dev environments
+      [ envs ];
+  };
 
   # set the entrypoint, user working folder, certificates env var
   # mount the home directory volume if it is used for persistence
   config = {
-    Cmd = [ "bash" "--rcfile" "/etc/profile.d/nix.sh" ];
+    # container will run as nix user
     WorkingDir = "/home/nix";
     Volumes = { "/home/nix" = { }; };
     User = "nix";
+
+    # load the nix scripts at startup so that PATH is set
+    Cmd = [ "bash" "--rcfile" "/etc/profile.d/nix.sh" ];
+
+    # other common environment variables
     Env = [
       "PAGER=cat"
       "USER=nix"
-      "ENV=/etc/profile.d/nix.sh"
-      "BASH_ENV=/etc/profile.d/nix.sh"
-      "NIX_BUILD_SHELL=/bin/bash"
       "NIX_PATH=nixpkgs=channel:nixos-unstable"
     ];
   };
@@ -63,12 +74,12 @@ in pkgs.dockerTools.buildImage {
     useradd -m -u ${uid} -g ${gid} -s /bin/bash -G users nix
 
     # configure nix
-    mkdir -p /etc/nix
-    cat > /etc/nix/nix.conf << EOF
+    mkdir -p /etc/nix && cat > /etc/nix/nix.conf << EOF
     experimental-features = nix-command flakes
     EOF
 
-    # set tmp permissions
+    # ensure tmp exists with correct permissions
+    mkdir -p /tmp
     chmod 1777 /tmp
   '';
 }
